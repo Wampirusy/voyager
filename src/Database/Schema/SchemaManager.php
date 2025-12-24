@@ -74,7 +74,7 @@ abstract class SchemaManager
                 'field' => $column,
                 'type' => $columnDetails['type'],
                 'null' => $columnDetails['nullable'],
-                'key' => !empty($indexes) ? substr($indexes[0]['type'], 0, 3) : null,
+                'key' => $indexes ? substr($indexes[array_key_first($indexes)]['type'], 0, 3) : null,
                 'default' => $columnDetails['default'],
                 'extra' => $columnDetails['auto_increment'] ? 'auto_increment' : '',
                 'indexes' => $indexes,
