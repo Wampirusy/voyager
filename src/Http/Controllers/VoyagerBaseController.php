@@ -15,6 +15,7 @@ use TCG\Voyager\Events\BreadDataUpdated;
 use TCG\Voyager\Events\BreadImagesDeleted;
 use TCG\Voyager\Facades\Voyager;
 use TCG\Voyager\Http\Controllers\Traits\BreadRelationshipParser;
+use TCG\Voyager\Models\DataType;
 
 class VoyagerBaseController extends Controller
 {
@@ -49,7 +50,7 @@ class VoyagerBaseController extends Controller
 
         $searchNames = [];
         if ($dataType->server_side) {
-            $searchNames = $dataType->browseRows->mapWithKeys(function ($row) {
+            $searchNames = $this->getSearchNames($dataType) ?? $dataType->browseRows->mapWithKeys(function ($row) {
                 return [$row['field'] => $row->getTranslatedAttribute('display_name')];
             });
         }
@@ -1018,5 +1019,20 @@ class VoyagerBaseController extends Controller
     protected function relationIsUsingAccessorAsLabel($details)
     {
         return in_array($details->label, app($details->model)->additional_attributes ?? []);
+    }
+
+    protected function getSearchNames(DataType $dataType): array
+    {
+        if (isset($dataType->details->searchFields)) {
+            if (array_is_list($dataType->details->searchFields)) {
+                return array_combine($dataType->details->searchFields, $dataType->details->searchFields);
+            }
+
+            return $dataType->details->searchFields;
+        }
+
+        return $dataType->browseRows->mapWithKeys(function ($row) {
+            return [$row['field'] => $row->getTranslatedAttribute('display_name')];
+        })->all();
     }
 }
