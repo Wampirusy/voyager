@@ -15,7 +15,7 @@
                 @endphp
 
                 @if(isset($query))
-                    <p>{{ $query->{$options->label} }}</p>
+                    <a href="/admin/{{ $relationshipSlugCustom[$options->model] }}/{{ $query->id }}">{{ $query->{$options->label} }}</a>
                 @else
                     <p>{{ __('voyager::generic.no_results') }}</p>
                 @endif

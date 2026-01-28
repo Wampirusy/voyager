@@ -60,6 +60,9 @@ class VoyagerBaseController extends Controller
         $usesSoftDeletes = false;
         $showSoftDeleted = false;
 
+        /* CUSTOM RELATIONSHIP RENDERING AS NAME LINK ANCHOR */
+        $relationshipSlugCustom = $this->makeRelationSlugCustom($dataType);
+
         // Next Get or Paginate the actual content from the MODEL that corresponds to the slug DataType
         if (strlen($dataType->model_name) != 0) {
             $model = app($dataType->model_name);
@@ -195,6 +198,7 @@ class VoyagerBaseController extends Controller
             'sortableColumns',
             'sortOrder',
             'searchNames',
+            'relationshipSlugCustom',
             'isServerSide',
             'defaultSearchKey',
             'usesSoftDeletes',
@@ -258,13 +262,22 @@ class VoyagerBaseController extends Controller
         // Eagerload Relations
         $this->eagerLoadRelations($dataTypeContent, $dataType, 'read', $isModelTranslatable);
 
+        /* CUSTOM RELATIONSHIP RENDERING AS NAME LINK ANCHOR */
+        $relationshipSlugCustom = $this->makeRelationSlugCustom($dataType);
+
         $view = 'voyager::bread.read';
 
         if (view()->exists("voyager::$slug.read")) {
             $view = "voyager::$slug.read";
         }
 
-        return Voyager::view($view, compact('dataType', 'dataTypeContent', 'isModelTranslatable', 'isSoftDeleted'));
+        return Voyager::view($view, compact(
+            'dataType',
+            'dataTypeContent',
+            'isModelTranslatable',
+            'isSoftDeleted',
+            'relationshipSlugCustom'
+        ));
     }
 
     //***************************************
@@ -495,7 +508,7 @@ class VoyagerBaseController extends Controller
         }
 
         $affected = 0;
-        
+
         foreach ($ids as $id) {
             $data = call_user_func([$dataType->model_name, 'findOrFail'], $id);
 
@@ -1019,6 +1032,24 @@ class VoyagerBaseController extends Controller
     protected function relationIsUsingAccessorAsLabel($details)
     {
         return in_array($details->label, app($details->model)->additional_attributes ?? []);
+    }
+
+    protected function makeRelationSlugCustom(DataType $dataType): array
+    {
+        $relationshipSlugCustom = [];
+
+        foreach ($dataType->rows as $row) {
+            if ($row->type == 'relationship') {
+                $details = $row->details;
+                $dataTypeRelationships = Voyager::model('DataType')->where('model_name', $details->model)->first();
+
+                if ($dataTypeRelationships) {
+                    $relationshipSlugCustom[$details->model] = $dataTypeRelationships->slug;
+                }
+            }
+        }
+
+        return $relationshipSlugCustom;
     }
 
     protected function getSearchNames(DataType $dataType): array
