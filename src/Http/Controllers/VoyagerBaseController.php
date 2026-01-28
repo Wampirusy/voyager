@@ -1054,12 +1054,15 @@ class VoyagerBaseController extends Controller
 
     protected function getSearchNames(DataType $dataType): array
     {
-        if (isset($dataType->details->searchFields)) {
-            if (array_is_list($dataType->details->searchFields)) {
-                return array_combine($dataType->details->searchFields, $dataType->details->searchFields);
+        if ($searchFields = $dataType?->details?->searchFields) {
+            if (array_is_list($searchFields)) {
+                return array_combine(
+                    $searchFields,
+                    array_map(fn(string $column) => ucwords(str_replace('_', ' ', $column)), $searchFields)
+                );
             }
 
-            return $dataType->details->searchFields;
+            return $searchFields;
         }
 
         return $dataType->browseRows->mapWithKeys(function ($row) {
