@@ -1054,7 +1054,9 @@ class VoyagerBaseController extends Controller
 
     protected function getSearchNames(DataType $dataType): array
     {
-        if ($searchFields = $dataType?->details?->searchFields) {
+        if (isset($dataType->details->searchFields)) {
+            $searchFields = $dataType->details->searchFields;
+
             if (array_is_list($searchFields)) {
                 return array_combine(
                     $searchFields,
