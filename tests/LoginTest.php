@@ -55,13 +55,13 @@ class LoginTest extends TestCase
     {
         session()->setPreviousUrl(route('voyager.login'));
 
-        for ($i = 0; $i <= 5; $i++) {
+        for ($i = 0; $i <= 6; $i++) {
             $t = $this->visit(route('voyager.login'))
                  ->type('john@Doe.com', 'email')
                  ->type('pass', 'password')
                  ->press(__('voyager::generic.login'));
         }
 
-        $t->see(__('auth.throttle', ['seconds' => 60]));
+        $t->see('Too many login attempts. Please try again in');
     }
 }
