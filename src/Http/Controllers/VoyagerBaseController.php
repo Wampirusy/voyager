@@ -113,6 +113,11 @@ class VoyagerBaseController extends Controller
                 $query->where('id', false);
             }
 
+            // This uses force index if it exists.
+            if ($forceIndexNames = $this->getForcedIndexNames($search, $orderBy)) {
+                $query->forceIndex(implode(',', $forceIndexNames));
+            }
+
             $row = $dataType->rows->where('field', $orderBy)->firstWhere('type', 'relationship');
             if ($orderBy && (in_array($orderBy, $dataType->fields()) || !empty($row))) {
                 $querySortOrder = (!empty($sortOrder)) ? $sortOrder : 'desc';
@@ -1086,5 +1091,26 @@ class VoyagerBaseController extends Controller
     protected function isSearchRequired(DataType $dataType): bool
     {
         return isset($dataType->details->searchIsRequired) && $dataType->details->searchIsRequired === true;
+    }
+
+    protected function getForcedIndexList(): array
+    {
+        return [];
+    }
+
+    protected function getForcedIndexNames(object $search, string $orderBy): array
+    {
+        if ($search->filter === 'equals' && $search->value) {
+            return [];
+        }
+
+        $forceIndexNames = [];
+        foreach ($this->getForcedIndexList() as $forceIndex => $forceIndexField) {
+            if ($orderBy === $forceIndexField) {
+                $forceIndexNames[] = $forceIndex;
+            }
+        }
+
+        return $forceIndexNames;
     }
 }
