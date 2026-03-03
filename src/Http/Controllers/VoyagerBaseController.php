@@ -63,6 +63,8 @@ class VoyagerBaseController extends Controller
         /* CUSTOM RELATIONSHIP RENDERING AS NAME LINK ANCHOR */
         $relationshipSlugCustom = $this->makeRelationSlugCustom($dataType);
 
+        $isSearchRequired = $this->isSearchRequired($dataType);
+
         // Next Get or Paginate the actual content from the MODEL that corresponds to the slug DataType
         if (strlen($dataType->model_name) != 0) {
             $model = app($dataType->model_name);
@@ -87,7 +89,7 @@ class VoyagerBaseController extends Controller
             $this->removeRelationshipField($dataType, 'browse');
 
             if ($search->value != '' && $search->key && $search->filter) {
-                if ($this->isSearchIsRequired($dataType)) {
+                if ($isSearchRequired) {
                     $search_filter = '=';
                     $search_value = $search->value;
                 } else {
@@ -106,7 +108,7 @@ class VoyagerBaseController extends Controller
                         $query->where($searchField, $search_filter, $search_value);
                     }
                 }
-            } elseif ($this->isSearchIsRequired($dataType)) {
+            } elseif ($isSearchRequired) {
                 // dirty hack to force filters
                 $query->where('id', false);
             }
@@ -211,7 +213,8 @@ class VoyagerBaseController extends Controller
             'defaultSearchKey',
             'usesSoftDeletes',
             'showSoftDeleted',
-            'showCheckboxColumn'
+            'showCheckboxColumn',
+            'isSearchRequired',
         ));
     }
 
@@ -1080,7 +1083,7 @@ class VoyagerBaseController extends Controller
         })->all();
     }
 
-    protected function isSearchIsRequired(DataType $dataType): bool
+    protected function isSearchRequired(DataType $dataType): bool
     {
         return isset($dataType->details->searchIsRequired) && $dataType->details->searchIsRequired === true;
     }
