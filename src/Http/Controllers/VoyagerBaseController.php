@@ -87,8 +87,13 @@ class VoyagerBaseController extends Controller
             $this->removeRelationshipField($dataType, 'browse');
 
             if ($search->value != '' && $search->key && $search->filter) {
-                $search_filter = ($search->filter == 'equals') ? '=' : 'LIKE';
-                $search_value = ($search->filter == 'equals') ? $search->value : '%'.$search->value.'%';
+                if ($this->isSearchIsRequired($dataType)) {
+                    $search_filter = '=';
+                    $search_value = $search->value;
+                } else {
+                    $search_filter = ($search->filter == 'equals') ? '=' : 'LIKE';
+                    $search_value = ($search->filter == 'equals') ? $search->value : '%'.$search->value.'%';
+                }
 
                 $searchField = $dataType->name.'.'.$search->key;
                 if ($row = $this->findSearchableRelationshipRow($dataType->rows->where('type', 'relationship'), $search->key)) {
@@ -101,6 +106,9 @@ class VoyagerBaseController extends Controller
                         $query->where($searchField, $search_filter, $search_value);
                     }
                 }
+            } elseif ($this->isSearchIsRequired($dataType)) {
+                // dirty hack to force filters
+                $query->where('id', false);
             }
 
             $row = $dataType->rows->where('field', $orderBy)->firstWhere('type', 'relationship');
@@ -1070,5 +1078,10 @@ class VoyagerBaseController extends Controller
         return $dataType->browseRows->mapWithKeys(function ($row) {
             return [$row['field'] => $row->getTranslatedAttribute('display_name')];
         })->all();
+    }
+
+    protected function isSearchIsRequired(DataType $dataType): bool
+    {
+        return isset($dataType->details->searchIsRequired) && $dataType->details->searchIsRequired === true;
     }
 }
