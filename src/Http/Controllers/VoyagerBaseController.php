@@ -1098,7 +1098,7 @@ class VoyagerBaseController extends Controller
         return [];
     }
 
-    protected function getForcedIndexNames(object $search, string $orderBy): array
+    protected function getForcedIndexNames(object $search, ?string $orderBy): array
     {
         if ($search->filter === 'equals' && $search->value) {
             return [];
