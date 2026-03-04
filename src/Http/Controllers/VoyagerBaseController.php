@@ -118,6 +118,8 @@ class VoyagerBaseController extends Controller
                 $query->forceIndex(implode(',', $forceIndexNames));
             }
 
+            $total = DB::selectOne(sprintf('SHOW TABLE STATUS LIKE "%s"',$model->getTable()))?->Rows ?? null;
+
             $row = $dataType->rows->where('field', $orderBy)->firstWhere('type', 'relationship');
             if ($orderBy && (in_array($orderBy, $dataType->fields()) || !empty($row))) {
                 $querySortOrder = (!empty($sortOrder)) ? $sortOrder : 'desc';
@@ -133,20 +135,22 @@ class VoyagerBaseController extends Controller
                 }
 
                 if ($isSearchRequired && empty($search->value)) {
-                    $row = DB::selectOne(sprintf('SHOW TABLE STATUS LIKE "%s"',$model->getTable()));
-                    $total = $row->Rows ?? null;
-
                     $dataTypeContent = $query->orderBy($orderBy, $querySortOrder)->paginate(total: $total);
                 } else {
-                    $dataTypeContent = call_user_func([
-                        $query->orderBy($orderBy, $querySortOrder),
-                        $getter,
-                    ]);
+                    $dataTypeContent = call_user_func([$query->orderBy($orderBy, $querySortOrder), $getter]);
                 }
             } elseif ($model->timestamps) {
-                $dataTypeContent = call_user_func([$query->latest($model::CREATED_AT), $getter]);
+                if ($isSearchRequired && empty($search->value)) {
+                    $dataTypeContent = $query->latest($model::CREATED_AT)->paginate(total: $total);
+                } else {
+                    $dataTypeContent = call_user_func([$query->latest($model::CREATED_AT), $getter]);
+                }
             } else {
-                $dataTypeContent = call_user_func([$query->orderBy($model->getKeyName(), 'DESC'), $getter]);
+                if ($isSearchRequired && empty($search->value)) {
+                    $dataTypeContent = $query->orderBy($model->getKeyName(), 'DESC')->paginate(total: $total);
+                } else {
+                    $dataTypeContent = call_user_func([$query->orderBy($model->getKeyName(), 'DESC'), $getter]);
+                }
             }
 
             // Replace relationships' keys for labels and create READ links if a slug is provided.
