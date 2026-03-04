@@ -132,10 +132,17 @@ class VoyagerBaseController extends Controller
                     );
                 }
 
-                $dataTypeContent = call_user_func([
-                    $query->orderBy($orderBy, $querySortOrder),
-                    $getter,
-                ]);
+                if ($isSearchRequired && empty($search->value)) {
+                    $row = DB::selectOne(sprintf('SHOW TABLE STATUS LIKE "%s"',$model->getTable()));
+                    $total = $row->Rows ?? null;
+
+                    $dataTypeContent = $query->orderBy($orderBy, $querySortOrder)->paginate(total: $total);
+                } else {
+                    $dataTypeContent = call_user_func([
+                        $query->orderBy($orderBy, $querySortOrder),
+                        $getter,
+                    ]);
+                }
             } elseif ($model->timestamps) {
                 $dataTypeContent = call_user_func([$query->latest($model::CREATED_AT), $getter]);
             } else {
