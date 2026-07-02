@@ -60,5 +60,12 @@
     "post-autoload-dump": [
       "@php vendor/bin/testbench package:discover --ansi"
     ]
+  },
+  "config": {
+    "policy": {
+      "advisories": {
+        "block": false
+      }
+    }
   }
 }

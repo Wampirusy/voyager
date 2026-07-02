@@ -15,38 +15,57 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@master
+    env:
+      PHP_VERSION: '8.2'
+      LARAVEL_VERSION: '^11.0'
+      TESTBENCH_VERSION: '^9.0'
 
-      # Configure PHP
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Select PHP version
-        uses: shivammathur/setup-php@master
+        uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '${{ env.PHP_VERSION }}'
           extensions: mbstring, pdo_sqlite, fileinfo, gd
           coverage: pcov
+          tools: composer:v2
 
-      # Configure NPM
-      - uses: actions/setup-node@v1
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '16.x'
+          cache: npm
 
-      # Install PHP dependencies
+      - name: Configure Laravel test environment
+        run: |
+          composer require --dev \
+            "laravel/framework:${{ env.LARAVEL_VERSION }}" \
+            "orchestra/testbench:${{ env.TESTBENCH_VERSION }}" \
+            --no-update \
+            --no-interaction \
+            --no-ansi
+
       - name: Install Composer dependencies
-        run: composer require "illuminate/support:11.*" --no-ansi
+        run: composer update --prefer-dist --no-interaction --no-progress --no-ansi --with-all-dependencies
 
-      # Install NPM dependencies
-      - name: Install Dependencies
-        run: npm install
+      - name: Show installed versions
+        run: |
+          composer show laravel/framework
+          composer show orchestra/testbench
 
-      # Build static assets
+      - name: Generate vendor symlink
+        run: ./vendor/bin/testbench
+
+      - name: Install NPM dependencies
+        run: npm ci
+
       - name: Compile Assets
         run: npm run prod
 
-      # Run phpunit tests to generate coverage report
       - name: Run tests for coverage
         run: php -d pcov.enabled=1 ./vendor/bin/phpunit --coverage-clover=coverage.xml
 
-      # Upload coverage report to codecov.io
       - name: Upload coverage
         run: bash <(curl -s https://codecov.io/bash)

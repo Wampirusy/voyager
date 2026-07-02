@@ -63,6 +63,8 @@ class VoyagerBaseController extends Controller
         /* CUSTOM RELATIONSHIP RENDERING AS NAME LINK ANCHOR */
         $relationshipSlugCustom = $this->makeRelationSlugCustom($dataType);
 
+        $isSearchRequired = $this->isSearchRequired($dataType);
+
         // Next Get or Paginate the actual content from the MODEL that corresponds to the slug DataType
         if (strlen($dataType->model_name) != 0) {
             $model = app($dataType->model_name);
@@ -87,8 +89,13 @@ class VoyagerBaseController extends Controller
             $this->removeRelationshipField($dataType, 'browse');
 
             if ($search->value != '' && $search->key && $search->filter) {
-                $search_filter = ($search->filter == 'equals') ? '=' : 'LIKE';
-                $search_value = ($search->filter == 'equals') ? $search->value : '%'.$search->value.'%';
+                if ($isSearchRequired) {
+                    $search_filter = '=';
+                    $search_value = $search->value;
+                } else {
+                    $search_filter = ($search->filter == 'equals') ? '=' : 'LIKE';
+                    $search_value = ($search->filter == 'equals') ? $search->value : '%'.$search->value.'%';
+                }
 
                 $searchField = $dataType->name.'.'.$search->key;
                 if ($row = $this->findSearchableRelationshipRow($dataType->rows->where('type', 'relationship'), $search->key)) {
@@ -101,7 +108,19 @@ class VoyagerBaseController extends Controller
                         $query->where($searchField, $search_filter, $search_value);
                     }
                 }
+            } elseif ($isSearchRequired) {
+                // dirty hack to force filters
+                $query->where('id', false);
             }
+
+            // This uses force index if it exists.
+            if ($forceIndexNames = $this->getForcedIndexNames($search, $orderBy)) {
+                $query->forceIndex(implode(',', $forceIndexNames));
+            }
+
+            $total = DB::connection()->getDriverName() === 'mysql'
+                ? DB::selectOne(sprintf('SHOW TABLE STATUS LIKE "%s"', $model->getTable()))?->Rows ?? null
+                : null;
 
             $row = $dataType->rows->where('field', $orderBy)->firstWhere('type', 'relationship');
             if ($orderBy && (in_array($orderBy, $dataType->fields()) || !empty($row))) {
@@ -117,14 +136,23 @@ class VoyagerBaseController extends Controller
                     );
                 }
 
-                $dataTypeContent = call_user_func([
-                    $query->orderBy($orderBy, $querySortOrder),
-                    $getter,
-                ]);
+                if ($isSearchRequired && empty($search->value)) {
+                    $dataTypeContent = $query->orderBy($orderBy, $querySortOrder)->paginate(total: $total);
+                } else {
+                    $dataTypeContent = call_user_func([$query->orderBy($orderBy, $querySortOrder), $getter]);
+                }
             } elseif ($model->timestamps) {
-                $dataTypeContent = call_user_func([$query->latest($model::CREATED_AT), $getter]);
+                if ($isSearchRequired && empty($search->value)) {
+                    $dataTypeContent = $query->latest($model::CREATED_AT)->paginate(total: $total);
+                } else {
+                    $dataTypeContent = call_user_func([$query->latest($model::CREATED_AT), $getter]);
+                }
             } else {
-                $dataTypeContent = call_user_func([$query->orderBy($model->getKeyName(), 'DESC'), $getter]);
+                if ($isSearchRequired && empty($search->value)) {
+                    $dataTypeContent = $query->orderBy($model->getKeyName(), 'DESC')->paginate(total: $total);
+                } else {
+                    $dataTypeContent = call_user_func([$query->orderBy($model->getKeyName(), 'DESC'), $getter]);
+                }
             }
 
             // Replace relationships' keys for labels and create READ links if a slug is provided.
@@ -203,7 +231,8 @@ class VoyagerBaseController extends Controller
             'defaultSearchKey',
             'usesSoftDeletes',
             'showSoftDeleted',
-            'showCheckboxColumn'
+            'showCheckboxColumn',
+            'isSearchRequired',
         ));
     }
 
@@ -1070,5 +1099,31 @@ class VoyagerBaseController extends Controller
         return $dataType->browseRows->mapWithKeys(function ($row) {
             return [$row['field'] => $row->getTranslatedAttribute('display_name')];
         })->all();
+    }
+
+    protected function isSearchRequired(DataType $dataType): bool
+    {
+        return isset($dataType->details->searchIsRequired) && $dataType->details->searchIsRequired === true;
+    }
+
+    protected function getForcedIndexList(): array
+    {
+        return [];
+    }
+
+    protected function getForcedIndexNames(object $search, ?string $orderBy): array
+    {
+        if ($search->filter === 'equals' && $search->value) {
+            return [];
+        }
+
+        $forceIndexNames = [];
+        foreach ($this->getForcedIndexList() as $forceIndex => $forceIndexField) {
+            if ($orderBy === $forceIndexField) {
+                $forceIndexNames[] = $forceIndex;
+            }
+        }
+
+        return $forceIndexNames;
     }
 }
